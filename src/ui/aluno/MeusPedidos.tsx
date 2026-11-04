@@ -1,21 +1,20 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { paraHHMM } from '../../domain/tempo';
-import type { Pedido } from '../../domain/types';
-import { ALUNO_ATUAL, useEstado } from '../../store/store';
-import { ROTULO_STATUS } from '../categorias';
-import { brl } from '../formatar';
+import type { PedidoVisao } from '../../app/visoes';
+import { brl } from '../../compartilhado/formatar';
+import { paraHHMM } from '../../compartilhado/tempo';
+import { useMeusPedidos } from '../contexto';
 
-function Ticket({ pedido }: { pedido: Pedido }) {
+function Ticket({ pedido }: { pedido: PedidoVisao }) {
   const pronto = pedido.status === 'PRONTO';
   const entregue = pedido.status === 'ENTREGUE';
   return (
     <article className={`ticket status-${pedido.status.toLowerCase()} ${entregue ? 'ticket-entregue' : ''}`}>
       <div className={`ticket-faixa ${pronto ? 'faixa-pronto' : ''}`}>
-        {pronto ? '✅ PRONTO PARA RETIRADA' : `${ROTULO_STATUS[pedido.status]}`}
+        {pronto ? '✅ PRONTO PARA RETIRADA' : pedido.rotuloDoStatus}
       </div>
       <div className="ticket-corpo">
         <div className="ticket-qr">
-          <QRCodeSVG value={`CANTINA|${pedido.codigo}|${pedido.id}`} size={132} level="M" />
+          <QRCodeSVG value={pedido.textoDoQr} size={132} level="M" />
           <div className="ticket-codigo">{pedido.codigo}</div>
         </div>
         <div className="ticket-detalhes">
@@ -40,8 +39,7 @@ function Ticket({ pedido }: { pedido: Pedido }) {
 }
 
 export function MeusPedidos() {
-  const e = useEstado();
-  const meus = e.pedidos.filter((p) => p.aluno === ALUNO_ATUAL).slice().reverse();
+  const meus = useMeusPedidos();
 
   if (meus.length === 0) {
     return (

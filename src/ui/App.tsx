@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { paraHHMM } from '../domain/tempo';
+import { paraHHMM } from '../compartilhado/tempo';
 import { AlunoView } from './aluno/AlunoView';
 import { PainelAtendente } from './atendente/PainelAtendente';
-import { useRelogio } from '../store/store';
+import { useRelogio } from './contexto';
 
 type Visao = 'aluno' | 'atendente';
 
@@ -16,7 +16,7 @@ export function App() {
         <div className="marca">
           <span className="marca-logo">🥪</span>
           <div>
-            <h1>Cantina do CESAR</h1>
+            <h1>CantiNet</h1>
             <p>Pediu, pagou, retirou. Sem fila.</p>
           </div>
         </div>

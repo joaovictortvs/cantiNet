@@ -1,14 +1,6 @@
 import { Cozinha, type PedidoParaCozinha } from './cozinha/Cozinha';
-import { criarEstacoesPadrao, ID_BALCAO } from './cozinha/estacoes';
 import { paraHHMM } from './tempo';
 import type { Pedido, PlanoProducao, TarefaProducao } from './types';
-
-/**
- * Cozinha única do app. Para criar uma estação nova (ex.: Liquidificador),
- * implemente a interface Estacao e registre em criarEstacoesPadrao().
- * Este arquivo não precisa mudar.
- */
-export const cozinha = new Cozinha(criarEstacoesPadrao());
 
 export function paraCozinha(p: Pedido): PedidoParaCozinha {
   return {
@@ -28,10 +20,11 @@ export function paraCozinha(p: Pedido): PedidoParaCozinha {
  * (alvo - tempo de preparo), assim todas terminam juntas. Se as bancadas
  * estiverem ocupadas, a tarefa termina mais cedo e o item fica aquecido até o alvo.
  */
-export function orquestrarCozinha(pedidos: Pedido[], agoraMin: number): PlanoProducao {
+export function orquestrarCozinha(pedidos: readonly Pedido[], agoraMin: number, cozinha: Cozinha): PlanoProducao {
   const ativos = pedidos.filter((p) => p.status === 'AGUARDANDO' || p.status === 'EM_PREPARO');
   const porId = new Map(ativos.map((p) => [p.id, p]));
   const plano = cozinha.planejar(ativos.map(paraCozinha), agoraMin);
+  const semPreparo = new Set(plano.blocos.filter((b) => !b.requerPreparo).map((b) => b.estacaoId));
 
   const alertas: string[] = [];
   const nomeDaEstacao = new Map<string, string>(); // chave da tarefa -> nome da estação
@@ -47,7 +40,7 @@ export function orquestrarCozinha(pedidos: Pedido[], agoraMin: number): PlanoPro
     if (atrasoMin > 0) {
       alertas.push(`${b.codigo}: começar ${b.estacaoNome.toLowerCase()} já — risco de ${atrasoMin} min de atraso.`);
     }
-    if (b.aquecidoMin > 0 && b.estacaoId !== ID_BALCAO) {
+    if (b.aquecidoMin > 0 && b.requerPreparo) {
       alertas.push(`${b.codigo}: ${b.descricao} ficará pronto ${b.aquecidoMin} min antes; manter aquecido.`);
     }
 
@@ -73,7 +66,7 @@ export function orquestrarCozinha(pedidos: Pedido[], agoraMin: number): PlanoPro
   tarefas.forEach((t, i) => (t.ordem = i + 1));
 
   const explicacoes = ativos.map((p) => {
-    const dele = tarefas.filter((t) => t.pedidoId === p.id && t.estacao !== ID_BALCAO);
+    const dele = tarefas.filter((t) => t.pedidoId === p.id && !semPreparo.has(t.estacao));
     const partes = dele.map(
       (t) => `${(nomeDaEstacao.get(`${t.pedidoId}-${t.estacao}`) ?? t.estacao).toLowerCase()} às ${paraHHMM(t.inicioMin)}`,
     );
@@ -90,4 +83,13 @@ export function orquestrarCozinha(pedidos: Pedido[], agoraMin: number): PlanoPro
         (proxima ? ` · próxima: ${proxima.descricao} (${paraHHMM(proxima.inicioMin)})` : '');
 
   return { tarefas, alertas, explicacoes, resumo };
+}
+
+/** A "IA" com a cozinha injetada (DIP): quem monta as estações é a composição, não este arquivo. */
+export class OrquestradorDaCozinha {
+  constructor(private readonly cozinha: Cozinha) {}
+
+  planejar(pedidos: readonly Pedido[], agoraMin: number): PlanoProducao {
+    return orquestrarCozinha(pedidos, agoraMin, this.cozinha);
+  }
 }

@@ -18,34 +18,34 @@ export interface Slot {
   disponivel: boolean;
 }
 
-function itensDaCategoria(produtos: Produto[], carrinho: ItemCarrinho[], categoria: Categoria) {
+function itensDaCategoria(produtos: readonly Produto[], carrinho: readonly ItemCarrinho[], categoria: Categoria) {
   return carrinho.filter((i) => produtos.find((p) => p.id === i.produtoId)?.categoria === categoria);
 }
 
 export function quantidadeDaCategoria(
-  produtos: Produto[],
-  carrinho: ItemCarrinho[],
+  produtos: readonly Produto[],
+  carrinho: readonly ItemCarrinho[],
   categoria: Categoria,
 ): number {
   return itensDaCategoria(produtos, carrinho, categoria).reduce((s, i) => s + i.quantidade, 0);
 }
 
-export function temItemDeChapa(produtos: Produto[], carrinho: ItemCarrinho[]): boolean {
+export function temItemDeChapa(produtos: readonly Produto[], carrinho: readonly ItemCarrinho[]): boolean {
   return quantidadeDaCategoria(produtos, carrinho, 'CHAPA') > 0;
 }
 
-export function tempoMaximo(produtos: Produto[], carrinho: ItemCarrinho[], categoria: Categoria): number {
+export function tempoMaximo(produtos: readonly Produto[], carrinho: readonly ItemCarrinho[], categoria: Categoria): number {
   return itensDaCategoria(produtos, carrinho, categoria).reduce((max, i) => {
     const p = produtos.find((x) => x.id === i.produtoId);
     return Math.max(max, p?.tempoPreparoMin ?? 0);
   }, 0);
 }
 
-function tempoMaximoEntre(produtos: Produto[], carrinho: ItemCarrinho[], categorias: Categoria[]): number {
+function tempoMaximoEntre(produtos: readonly Produto[], carrinho: readonly ItemCarrinho[], categorias: readonly Categoria[]): number {
   return Math.max(0, ...categorias.map((c) => tempoMaximo(produtos, carrinho, c)));
 }
 
-function vagasUsadas(pedidos: Pedido[], minuto: number): number {
+function vagasUsadas(pedidos: readonly Pedido[], minuto: number): number {
   return pedidos
     .filter((p) => p.status !== 'ENTREGUE' && p.retiradaMin === minuto)
     .reduce(
@@ -58,9 +58,9 @@ function vagasUsadas(pedidos: Pedido[], minuto: number): number {
 /** Horarios de retirada estilo "barbearia" para pedidos com item de chapa. */
 export function gerarSlots(
   agoraMin: number,
-  produtos: Produto[],
-  carrinho: ItemCarrinho[],
-  pedidos: Pedido[],
+  produtos: readonly Produto[],
+  carrinho: readonly ItemCarrinho[],
+  pedidos: readonly Pedido[],
 ): Slot[] {
   const qtd = quantidadeDaCategoria(produtos, carrinho, 'CHAPA');
   const preparo = tempoMaximoEntre(produtos, carrinho, ['CHAPA', ...PREPARO_SEM_HORARIO]);
@@ -77,8 +77,8 @@ export function gerarSlots(
 /** Sem item de chapa: retirada assim que forno e liquidificador terminarem (ou quase imediata). */
 export function calcularRetiradaSemChapa(
   agoraMin: number,
-  produtos: Produto[],
-  carrinho: ItemCarrinho[],
+  produtos: readonly Produto[],
+  carrinho: readonly ItemCarrinho[],
 ): number {
   return agoraMin + Math.max(tempoMaximoEntre(produtos, carrinho, PREPARO_SEM_HORARIO), 1);
 }

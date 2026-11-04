@@ -1,15 +1,15 @@
 import type { ItemCarrinho, Produto } from './types';
 
-export function buscarProduto(produtos: Produto[], id: string): Produto | undefined {
+export function buscarProduto(produtos: readonly Produto[], id: string): Produto | undefined {
   return produtos.find((p) => p.id === id);
 }
 
-export function quantidadeNoCarrinho(carrinho: ItemCarrinho[], id: string): number {
+export function quantidadeNoCarrinho(carrinho: readonly ItemCarrinho[], id: string): number {
   return carrinho.find((i) => i.produtoId === id)?.quantidade ?? 0;
 }
 
 /** Retorna lista de erros (vazia = carrinho valido frente ao estoque atual). */
-export function validarCarrinho(produtos: Produto[], carrinho: ItemCarrinho[]): string[] {
+export function validarCarrinho(produtos: readonly Produto[], carrinho: readonly ItemCarrinho[]): string[] {
   const erros: string[] = [];
   if (carrinho.length === 0) erros.push('Seu carrinho está vazio.');
   for (const item of carrinho) {
@@ -25,15 +25,4 @@ export function validarCarrinho(produtos: Produto[], carrinho: ItemCarrinho[]): 
     }
   }
   return erros;
-}
-
-export function baixarEstoque(produtos: Produto[], itens: ItemCarrinho[]): Produto[] {
-  return produtos.map((p) => {
-    const item = itens.find((i) => i.produtoId === p.id);
-    return item ? { ...p, estoque: Math.max(0, p.estoque - item.quantidade) } : p;
-  });
-}
-
-export function reporEstoque(produtos: Produto[], id: string, qtd: number): Produto[] {
-  return produtos.map((p) => (p.id === id ? { ...p, estoque: Math.max(0, p.estoque + qtd) } : p));
 }

@@ -1,21 +1,25 @@
-import { useMemo, useState } from 'react';
-import { orquestrarCozinha } from '../../domain/ia';
-import { ConfirmacaoPorQrCode, type RepositorioRetirada, type ResultadoRetirada } from '../../domain/retirada';
-import { paraHHMM } from '../../domain/tempo';
-import type { Pedido, StatusPedido, TarefaProducao } from '../../domain/types';
-import { acoes, useEstado, useRelogio } from '../../store/store';
-import { META_CATEGORIA, ORDEM_CATEGORIAS, ROTULO_STATUS } from '../categorias';
-import { brl } from '../formatar';
+import { useState } from 'react';
+import type { PedidoVisao, ResultadoRetirada, StatusVisao, TarefaVisao } from '../../app/visoes';
+import { brl } from '../../compartilhado/formatar';
+import { paraHHMM } from '../../compartilhado/tempo';
+import { useDemonstracao, usePainel } from '../contexto';
 import { LeitorQrCamera } from './LeitorQrCamera';
 import { LinhaDoTempo } from './LinhaDoTempo';
 
-const COLUNAS: { status: StatusPedido; titulo: string; botao: string | null }[] = [
-  { status: 'AGUARDANDO', titulo: 'Na fila', botao: 'Iniciar preparo' },
-  { status: 'EM_PREPARO', titulo: 'Em preparo', botao: 'Marcar pronto' },
-  { status: 'PRONTO', titulo: 'Pronto', botao: 'Entregar ✔' },
+const ROTULO_STATUS = {
+  AGUARDANDO: 'Na fila',
+  EM_PREPARO: 'Em preparo',
+  PRONTO: 'Pronto para retirada',
+  ENTREGUE: 'Entregue',
+} as const;
+
+const COLUNAS: { status: StatusVisao; chave: 'naFila' | 'emPreparo' | 'prontos'; titulo: string; botao: string }[] = [
+  { status: 'AGUARDANDO', chave: 'naFila', titulo: 'Na fila', botao: 'Iniciar preparo' },
+  { status: 'EM_PREPARO', chave: 'emPreparo', titulo: 'Em preparo', botao: 'Marcar pronto' },
+  { status: 'PRONTO', chave: 'prontos', titulo: 'Pronto', botao: 'Entregar ✔' },
 ];
 
-function TarefaLinha({ t }: { t: TarefaProducao }) {
+function TarefaLinha({ t }: { t: TarefaVisao }) {
   return (
     <li className={`tarefa est-${t.estacao.toLowerCase()} ${t.emAndamento ? 'andamento' : ''}`}>
       <span className="tarefa-ordem">{t.ordem}</span>
@@ -38,7 +42,7 @@ function TarefaLinha({ t }: { t: TarefaProducao }) {
   );
 }
 
-function PedidoCard({ pedido, botao }: { pedido: Pedido; botao: string | null }) {
+function PedidoCard({ pedido, botao, aoAvancar }: { pedido: PedidoVisao; botao: string; aoAvancar: () => void }) {
   return (
     <article className="pedido-card">
       <div className="pedido-topo">
@@ -49,37 +53,30 @@ function PedidoCard({ pedido, botao }: { pedido: Pedido; botao: string | null })
       <ul>
         {pedido.itens.map((i) => (
           <li key={i.produtoId}>
-            {i.quantidade}× {i.nome} <small className={`pt ${META_CATEGORIA[i.categoria].classe}`}>●</small>
+            {i.quantidade}× {i.nome} <small className={`pt ${i.classeDaCategoria}`}>●</small>
           </li>
         ))}
       </ul>
-      {botao && (
-        <button className="btn btn-primario" onClick={() => acoes.avancarStatus(pedido.id)}>
-          {botao}
-        </button>
-      )}
+      <button className="btn btn-primario" onClick={aoAvancar}>
+        {botao}
+      </button>
     </article>
   );
 }
 
 export function PainelAtendente() {
-  const e = useEstado();
-  const agora = useRelogio();
+  const { painel, agoraMin: agora, cozinha, estoque } = usePainel();
+  const demo = useDemonstracao();
   const [busca, setBusca] = useState('');
   const [camera, setCamera] = useState(false);
   const [resultado, setResultado] = useState<ResultadoRetirada | null>(null);
 
-  const plano = useMemo(() => orquestrarCozinha(e.pedidos, agora), [e.pedidos, agora]);
-  const entregues = e.pedidos.filter((p) => p.status === 'ENTREGUE').length;
+  const plano = painel.plano;
   const termo = busca.trim().toUpperCase();
 
-  /** Retirada pela câmera: ConfirmacaoPorQrCode implementa a mesma interface da confirmação por código. */
+  /** Retirada pela câmera: a forma 'qrcode' implementa a mesma interface da confirmação por código. */
   function aoLerQrCode(texto: string) {
-    const repo: RepositorioRetirada = {
-      buscarPorCodigo: (codigo) => e.pedidos.find((p) => p.codigo === codigo),
-      marcarEntregue: (id) => acoes.entregarPedido(id),
-    };
-    const r = new ConfirmacaoPorQrCode(repo).confirmar(texto);
+    const r = cozinha.confirmarRetirada('qrcode', texto);
     setResultado(r);
     if (r.ok) setCamera(false);
   }
@@ -90,7 +87,7 @@ export function PainelAtendente() {
         <div>
           <h2>Painel da cozinha</h2>
           <p className="nota">
-            {entregues} entregue(s) · {e.pedidos.length - entregues} em andamento
+            {painel.entregues} entregue(s) · {painel.emAndamento} em andamento
           </p>
         </div>
         <div className="painel-acoes">
@@ -110,13 +107,13 @@ export function PainelAtendente() {
           >
             📷 Ler QR Code
           </button>
-          <button className="btn" onClick={() => acoes.avancarRelogio(5)} title="Avançar o relógio da demo">
+          <button className="btn" onClick={() => demo.adiantarRelogio(5)} title="Avançar o relógio da demo">
             ⏩ +5 min
           </button>
-          <button className="btn btn-primario" onClick={() => acoes.gerarPedidosDemo()}>
+          <button className="btn btn-primario" onClick={() => demo.gerarPedidosDeDemonstracao()}>
             ➕ Pedidos de demonstração
           </button>
-          <button className="btn btn-fantasma" onClick={() => acoes.reiniciar()}>
+          <button className="btn btn-fantasma" onClick={() => demo.reiniciar()}>
             ↺ Reiniciar
           </button>
         </div>
@@ -188,10 +185,7 @@ export function PainelAtendente() {
 
       <div className="kanban">
         {COLUNAS.map((c) => {
-          const pedidos = e.pedidos
-            .filter((p) => p.status === c.status)
-            .filter((p) => !termo || p.codigo.includes(termo))
-            .sort((a, b) => a.retiradaMin - b.retiradaMin);
+          const pedidos = painel[c.chave].filter((p) => !termo || p.codigo.includes(termo));
           return (
             <div key={c.status} className={`coluna coluna-${c.status.toLowerCase()}`}>
               <h3>
@@ -199,7 +193,7 @@ export function PainelAtendente() {
               </h3>
               {pedidos.length === 0 && <p className="vazio">—</p>}
               {pedidos.map((p) => (
-                <PedidoCard key={p.id} pedido={p} botao={c.botao} />
+                <PedidoCard key={p.id} pedido={p} botao={c.botao} aoAvancar={() => cozinha.avancarPedido(p.id)} />
               ))}
             </div>
           );
@@ -208,26 +202,24 @@ export function PainelAtendente() {
 
       <div className="estoque-card">
         <h3>📦 Estoque (atualiza a cada venda)</h3>
-        {ORDEM_CATEGORIAS.map((cat) => (
-          <div key={cat} className={`estoque-grupo ${META_CATEGORIA[cat].classe}`}>
+        {painel.estoque.map((cat) => (
+          <div key={cat.id} className={`estoque-grupo ${cat.classe}`}>
             <h4>
-              {META_CATEGORIA[cat].icone} {META_CATEGORIA[cat].titulo}
+              {cat.icone} {cat.titulo}
             </h4>
             <ul>
-              {e.produtos
-                .filter((p) => p.categoria === cat)
-                .map((p) => (
-                  <li key={p.id}>
-                    <span>
-                      {p.emoji} {p.nome} <small className="nota">{brl(p.preco)}</small>
-                    </span>
-                    <span className={`qtd ${p.estoque === 0 ? 'zero' : p.estoque <= 3 ? 'baixo' : ''}`}>{p.estoque}</span>
-                    <span className="repor">
-                      <button onClick={() => acoes.reporEstoque(p.id, 1)}>+1</button>
-                      <button onClick={() => acoes.reporEstoque(p.id, 5)}>+5</button>
-                    </span>
-                  </li>
-                ))}
+              {cat.produtos.map((p) => (
+                <li key={p.id}>
+                  <span>
+                    {p.emoji} {p.nome} <small className="nota">{brl(p.preco)}</small>
+                  </span>
+                  <span className={`qtd ${p.estoque === 0 ? 'zero' : p.estoque <= 3 ? 'baixo' : ''}`}>{p.estoque}</span>
+                  <span className="repor">
+                    <button onClick={() => estoque.reporEstoque(p.id, 1)}>+1</button>
+                    <button onClick={() => estoque.reporEstoque(p.id, 5)}>+5</button>
+                  </span>
+                </li>
+              ))}
             </ul>
           </div>
         ))}

@@ -1,7 +1,5 @@
 import type { Estacao, ProdutoPreparavel } from "./Estacao";
 
-export const ID_BALCAO = "balcao";
-
 export class Forno implements Estacao {
   readonly id = "forno";
   readonly nome = "Forno";
@@ -27,7 +25,8 @@ export class Chapa implements Estacao {
 
 /** Pronta-entrega: só separar o item (1 min), sem fila nem aquecimento. */
 export class Balcao implements Estacao {
-  readonly id = ID_BALCAO;
+  readonly id = "balcao";
+  readonly requerPreparo = false;
   readonly nome = "Balcão";
   readonly categoria = "PRONTA_ENTREGA";
   readonly bancadas = Number.POSITIVE_INFINITY;

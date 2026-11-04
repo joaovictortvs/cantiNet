@@ -30,6 +30,8 @@ export interface BlocoTimeline {
   aquecidoMin: number;
   /** Já passou da hora de começar. */
   atrasado: boolean;
+  /** Falso para estações que só separam o item (balcão): nada a manter aquecido. */
+  requerPreparo: boolean;
 }
 
 export interface PlanoCozinha {
@@ -92,6 +94,7 @@ export class Cozinha {
           alvoMin: t.pedido.alvoMin,
           aquecidoMin,
           atrasado,
+          requerPreparo: estacao.requerPreparo !== false,
         });
 
         if (atrasado) {

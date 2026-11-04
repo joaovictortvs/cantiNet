@@ -48,13 +48,3 @@ export interface ResultadoCobranca {
   erro?: string;
   comprovante?: string;
 }
-
-/** Gateway de pagamento mockado: aprova depois de ~700ms. */
-export function cobrar(cartao: Cartao, valor: number): Promise<ResultadoCobranca> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (valor <= 0) resolve({ ok: false, erro: 'Valor inválido.' });
-      else resolve({ ok: true, comprovante: `AUT-${Date.now().toString(36).toUpperCase()}-${cartao.ultimos4}` });
-    }, 700);
-  });
-}

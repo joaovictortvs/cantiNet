@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ALUNO_ATUAL, useEstado } from '../../store/store';
+import { useResumoDoAluno } from '../contexto';
 import { CardapioView } from './CardapioView';
 import { CarrinhoPanel } from './CarrinhoPanel';
 import { MeusPedidos } from './MeusPedidos';
@@ -7,10 +7,8 @@ import { MeusPedidos } from './MeusPedidos';
 type Aba = 'cardapio' | 'pedidos';
 
 export function AlunoView() {
-  const e = useEstado();
+  const { itensNoCarrinho, pedidosAtivos: ativos } = useResumoDoAluno();
   const [aba, setAba] = useState<Aba>('cardapio');
-  const ativos = e.pedidos.filter((p) => p.aluno === ALUNO_ATUAL && p.status !== 'ENTREGUE').length;
-  const itensNoCarrinho = e.carrinho.reduce((s, i) => s + i.quantidade, 0);
 
   return (
     <section>

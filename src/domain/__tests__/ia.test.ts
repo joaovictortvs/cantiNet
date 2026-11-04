@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { orquestrarCozinha } from "../ia";
+import { Cozinha } from "../cozinha/Cozinha";
+import { criarEstacoesPadrao } from "../cozinha/estacoes";
+import { orquestrarCozinha as orquestrar } from "../ia";
 import type { ItemPedido, Pedido } from "../types";
 
 const ALVO = 12 * 60;
+const cozinhaPadrao = new Cozinha(criarEstacoesPadrao());
+const orquestrarCozinha = (pedidos: Parameters<typeof orquestrar>[0], agora: number) => orquestrar(pedidos, agora, cozinhaPadrao);
 
 const item = (produtoId: string, nome: string, categoria: ItemPedido["categoria"], tempo: number, quantidade = 1): ItemPedido => ({
   produtoId,

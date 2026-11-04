@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { detectarBandeira } from '../../domain/pagamento';
-import { acoes } from '../../store/store';
+import { detectarBandeira } from '../../app/cartao';
+import { useCadastroDeCartao } from '../contexto';
 
 function formatarNumero(v: string): string {
   return v
@@ -17,6 +17,7 @@ function formatarValidade(v: string): string {
 }
 
 export function CartaoForm({ onSalvo }: { onSalvo: () => void }) {
+  const { cadastrarCartao } = useCadastroDeCartao();
   const [titular, setTitular] = useState('');
   const [numero, setNumero] = useState('');
   const [validade, setValidade] = useState('');
@@ -33,8 +34,8 @@ export function CartaoForm({ onSalvo }: { onSalvo: () => void }) {
 
   function enviar(ev: FormEvent) {
     ev.preventDefault();
-    const r = acoes.cadastrarCartao({ titular, numero, validade, cvv, tipo });
-    if (!r.ok) setErro(r.erro ?? 'Dados inválidos.');
+    const r = cadastrarCartao({ titular, numero, validade, cvv, tipo });
+    if (!r.ok) setErro(r.erro || 'Dados inválidos.');
     else onSalvo();
   }
 

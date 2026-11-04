@@ -1,9 +1,9 @@
-import type { TarefaProducao } from '../../domain/types';
-import { paraHHMM } from '../../domain/tempo';
+import type { TarefaVisao } from '../../app/visoes';
+import { paraHHMM } from '../../compartilhado/tempo';
 
 interface Props {
   /** Tarefas do plano da IA (orquestrarCozinha). O gráfico se reorganiza sozinho quando o plano muda. */
-  tarefas: TarefaProducao[];
+  tarefas: readonly TarefaVisao[];
   /** Minutos desde 00:00 (relógio da demo). */
   agoraMin: number;
 }
