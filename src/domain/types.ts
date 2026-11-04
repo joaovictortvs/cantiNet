@@ -53,7 +53,8 @@ export interface TarefaProducao {
   pedidoId: string;
   codigo: string;
   aluno: string;
-  estacao: Estacao;
+  /** Id da estação: 'forno', 'chapa', 'balcao', 'liquidificador'... (novas estações entram sem mudar este tipo). */
+  estacao: string;
   bancada: string;
   descricao: string;
   inicioMin: number;

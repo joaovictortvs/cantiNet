@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import { orquestrarCozinha } from '../../domain/ia';
+import { ConfirmacaoPorQrCode, type RepositorioRetirada, type ResultadoRetirada } from '../../domain/retirada';
 import { paraHHMM } from '../../domain/tempo';
 import type { Pedido, StatusPedido, TarefaProducao } from '../../domain/types';
 import { acoes, useEstado, useRelogio } from '../../store/store';
 import { META_CATEGORIA, ORDEM_CATEGORIAS, ROTULO_STATUS } from '../categorias';
 import { brl } from '../formatar';
+import { LeitorQrCamera } from './LeitorQrCamera';
+import { LinhaDoTempo } from './LinhaDoTempo';
 
 const COLUNAS: { status: StatusPedido; titulo: string; botao: string | null }[] = [
   { status: 'AGUARDANDO', titulo: 'Na fila', botao: 'Iniciar preparo' },
@@ -63,10 +66,23 @@ export function PainelAtendente() {
   const e = useEstado();
   const agora = useRelogio();
   const [busca, setBusca] = useState('');
+  const [camera, setCamera] = useState(false);
+  const [resultado, setResultado] = useState<ResultadoRetirada | null>(null);
 
   const plano = useMemo(() => orquestrarCozinha(e.pedidos, agora), [e.pedidos, agora]);
   const entregues = e.pedidos.filter((p) => p.status === 'ENTREGUE').length;
   const termo = busca.trim().toUpperCase();
+
+  /** Retirada pela câmera: ConfirmacaoPorQrCode implementa a mesma interface da confirmação por código. */
+  function aoLerQrCode(texto: string) {
+    const repo: RepositorioRetirada = {
+      buscarPorCodigo: (codigo) => e.pedidos.find((p) => p.codigo === codigo),
+      marcarEntregue: (id) => acoes.entregarPedido(id),
+    };
+    const r = new ConfirmacaoPorQrCode(repo).confirmar(texto);
+    setResultado(r);
+    if (r.ok) setCamera(false);
+  }
 
   return (
     <section className="painel">
@@ -84,6 +100,16 @@ export function PainelAtendente() {
             value={busca}
             onChange={(ev) => setBusca(ev.target.value)}
           />
+          <button
+            className="btn"
+            onClick={() => {
+              setResultado(null);
+              setCamera((c) => !c);
+            }}
+            title="Ler o QR Code do pedido pela câmera"
+          >
+            📷 Ler QR Code
+          </button>
           <button className="btn" onClick={() => acoes.avancarRelogio(5)} title="Avançar o relógio da demo">
             ⏩ +5 min
           </button>
@@ -95,6 +121,27 @@ export function PainelAtendente() {
           </button>
         </div>
       </div>
+
+      {(camera || resultado) && (
+        <div className="estoque-card">
+          <h3>📷 Retirada por QR Code</h3>
+          {camera && <LeitorQrCamera onLeitura={aoLerQrCode} />}
+          {resultado && (
+            <p role="status">
+              {resultado.ok ? `✔ Pedido ${resultado.codigo} entregue.` : `⚠️ ${resultado.mensagem}`}
+            </p>
+          )}
+          <button
+            className="btn btn-fantasma"
+            onClick={() => {
+              setCamera(false);
+              setResultado(null);
+            }}
+          >
+            Fechar
+          </button>
+        </div>
+      )}
 
       <div className="ia-card">
         <div className="ia-topo">
@@ -130,6 +177,11 @@ export function PainelAtendente() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="estoque-card">
+        <h3>🗓️ Linha do tempo da cozinha</h3>
+        <LinhaDoTempo tarefas={plano.tarefas} agoraMin={agora} />
       </div>
 
       <div className="kanban">

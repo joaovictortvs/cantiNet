@@ -13,6 +13,7 @@ export interface PedidoParaCozinha {
   itens: ItemParaCozinha[];
 }
 
+/** Uma tarefa = um pedido em uma estação (todos os itens daquela estação juntos). */
 export interface BlocoTimeline {
   pedidoId: string;
   codigo: string;
@@ -20,12 +21,14 @@ export interface BlocoTimeline {
   estacaoNome: string;
   /** Índice da bancada dentro da estação (0, 1, ...). */
   bancada: number;
-  produto: string;
+  rotuloBancada: string;
+  descricao: string;
   inicioMin: number;
   fimMin: number;
-  /** Minutos que o item fica aquecido esperando a retirada. */
+  alvoMin: number;
+  /** Minutos que o item fica pronto antes do alvo (precisa ficar aquecido). */
   aquecidoMin: number;
-  /** Já passou da hora de começar: iniciar agora. */
+  /** Já passou da hora de começar. */
   atrasado: boolean;
 }
 
@@ -38,14 +41,14 @@ export interface PlanoCozinha {
 
 interface Tarefa {
   pedido: PedidoParaCozinha;
-  produto: ProdutoPreparavel;
+  descricao: string;
   duracao: number;
 }
 
 /**
  * A "IA" (determinística): agendamento reverso.
- * Cada item termina no horário de retirada; se a bancada já está ocupada pelo
- * pedido seguinte, o item termina antes e fica aquecido até o alvo.
+ * Cada tarefa termina no horário de retirada; se a bancada já está ocupada pela
+ * tarefa seguinte, ela termina antes e fica aquecida até o alvo.
  * Conhece apenas a interface Estacao, nunca uma estação concreta.
  */
 export class Cozinha {
@@ -60,17 +63,10 @@ export class Cozinha {
       if (tarefas.length === 0) continue;
 
       // Do alvo mais tardio para o mais cedo; desempate estável.
-      tarefas.sort(
-        (a, b) =>
-          b.pedido.alvoMin - a.pedido.alvoMin ||
-          a.pedido.codigo.localeCompare(b.pedido.codigo) ||
-          a.produto.nome.localeCompare(b.produto.nome),
-      );
+      tarefas.sort((a, b) => b.pedido.alvoMin - a.pedido.alvoMin || a.pedido.codigo.localeCompare(b.pedido.codigo));
 
-      // limite[b] = instante em que a bancada b precisa estar livre (início da tarefa já alocada depois).
-      const limite: number[] = new Array(Math.min(estacao.bancadas, tarefas.length)).fill(
-        Number.POSITIVE_INFINITY,
-      );
+      // limite[b] = instante em que a bancada b precisa estar livre (início da tarefa já alocada depois dela).
+      const limite: number[] = new Array(Math.min(estacao.bancadas, tarefas.length)).fill(Number.POSITIVE_INFINITY);
 
       for (const t of tarefas) {
         let b = 0;
@@ -89,22 +85,22 @@ export class Cozinha {
           estacaoId: estacao.id,
           estacaoNome: estacao.nome,
           bancada: b,
-          produto: t.produto.nome,
+          rotuloBancada: this.rotulo(estacao, b),
+          descricao: t.descricao,
           inicioMin: inicio,
           fimMin: fim,
+          alvoMin: t.pedido.alvoMin,
           aquecidoMin,
           atrasado,
         });
 
         if (atrasado) {
           alertas.push(
-            `${t.pedido.codigo}: iniciar agora ${t.produto.nome} (${estacao.nome}); deveria ter começado há ${agoraMin - inicio} min.`,
+            `${t.pedido.codigo}: iniciar agora ${t.descricao} (${estacao.nome}); deveria ter começado há ${agoraMin - inicio} min.`,
           );
         }
         if (aquecidoMin > 0) {
-          alertas.push(
-            `${t.pedido.codigo}: ${t.produto.nome} termina cedo e fica aquecido por ${aquecidoMin} min.`,
-          );
+          alertas.push(`${t.pedido.codigo}: ${t.descricao} termina cedo e fica aquecido por ${aquecidoMin} min.`);
         }
       }
     }
@@ -114,13 +110,12 @@ export class Cozinha {
     for (const p of pedidos)
       for (const i of p.itens)
         if (!conhecidas.has(i.produto.categoria))
-          alertas.push(
-            `${p.codigo}: nenhuma estação atende a categoria ${i.produto.categoria} (${i.produto.nome}).`,
-          );
+          alertas.push(`${p.codigo}: nenhuma estação atende a categoria ${i.produto.categoria} (${i.produto.nome}).`);
 
     blocos.sort(
       (a, b) =>
         a.inicioMin - b.inicioMin ||
+        a.alvoMin - b.alvoMin ||
         a.estacaoId.localeCompare(b.estacaoId) ||
         a.bancada - b.bancada ||
         a.codigo.localeCompare(b.codigo),
@@ -130,19 +125,25 @@ export class Cozinha {
       blocos,
       alertas,
       inicioMin: blocos.length ? Math.min(...blocos.map((b) => b.inicioMin)) : agoraMin,
-      fimMin: blocos.length ? Math.max(...blocos.map((b) => b.fimMin + b.aquecidoMin)) : agoraMin,
+      fimMin: blocos.length ? Math.max(...blocos.map((b) => b.alvoMin)) : agoraMin,
     };
+  }
+
+  private rotulo(estacao: Estacao, indice: number): string {
+    if (estacao.rotuloBancada) return estacao.rotuloBancada(indice);
+    return Number.isFinite(estacao.bancadas) && estacao.bancadas > 1 ? `${estacao.nome} ${indice + 1}` : estacao.nome;
   }
 
   private tarefasDa(estacao: Estacao, pedidos: readonly PedidoParaCozinha[]): Tarefa[] {
     const out: Tarefa[] = [];
-    for (const pedido of pedidos)
-      for (const item of pedido.itens) {
-        if (item.produto.categoria !== estacao.categoria) continue;
-        const duracao = estacao.tempoPreparo(item.produto);
-        if (duracao <= 0) continue;
-        for (let n = 0; n < item.quantidade; n++) out.push({ pedido, produto: item.produto, duracao });
-      }
+    for (const pedido of pedidos) {
+      const itens = pedido.itens.filter((i) => i.produto.categoria === estacao.categoria);
+      if (itens.length === 0) continue;
+      const duracao = Math.max(...itens.map((i) => estacao.tempoPreparo(i.produto)));
+      if (duracao <= 0) continue;
+      const lista = itens.map((i) => `${i.quantidade}× ${i.produto.nome}`).join(", ");
+      out.push({ pedido, duracao, descricao: estacao.descricaoTarefa ? estacao.descricaoTarefa(lista) : lista });
+    }
     return out;
   }
 }

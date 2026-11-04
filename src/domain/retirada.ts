@@ -1,4 +1,4 @@
-export type StatusRetirada = "NA_FILA" | "EM_PREPARO" | "PRONTO" | "ENTREGUE";
+export type StatusRetirada = "AGUARDANDO" | "EM_PREPARO" | "PRONTO" | "ENTREGUE";
 
 export interface PedidoRetirada {
   id: string;

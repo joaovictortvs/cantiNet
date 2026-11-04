@@ -1,5 +1,7 @@
 import type { Estacao, ProdutoPreparavel } from "./Estacao";
 
+export const ID_BALCAO = "balcao";
+
 export class Forno implements Estacao {
   readonly id = "forno";
   readonly nome = "Forno";
@@ -7,6 +9,9 @@ export class Forno implements Estacao {
   readonly bancadas = 2; // 2 bandejas
   tempoPreparo(produto: ProdutoPreparavel): number {
     return produto.tempoPreparoMin;
+  }
+  rotuloBancada(indice: number): string {
+    return `Forno · bandeja ${indice + 1}`;
   }
 }
 
@@ -20,14 +25,17 @@ export class Chapa implements Estacao {
   }
 }
 
-/** Pronta-entrega: não tem preparo, então nunca aparece na linha do tempo. */
+/** Pronta-entrega: só separar o item (1 min), sem fila nem aquecimento. */
 export class Balcao implements Estacao {
-  readonly id = "balcao";
+  readonly id = ID_BALCAO;
   readonly nome = "Balcão";
-  readonly categoria = "BALCAO";
+  readonly categoria = "PRONTA_ENTREGA";
   readonly bancadas = Number.POSITIVE_INFINITY;
   tempoPreparo(): number {
-    return 0;
+    return 1;
+  }
+  descricaoTarefa(itens: string): string {
+    return `Separar ${itens}`;
   }
 }
 

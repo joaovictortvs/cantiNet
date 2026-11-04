@@ -1,12 +1,12 @@
 /**
  * Contrato de uma estação da cozinha (OCP + Liskov + composição).
  * Para criar uma estação nova basta implementar esta interface
- * e registrá-la na lista usada pela Cozinha. Nenhum outro arquivo muda.
+ * e registrá-la em criarEstacoesPadrao(). Nenhum outro arquivo muda.
  */
 export interface ProdutoPreparavel {
   id: string;
   nome: string;
-  /** Texto livre: "FORNO", "CHAPA", "BALCAO", "SUCO_NATURAL"... */
+  /** "FORNO", "CHAPA", "PRONTA_ENTREGA", "SUCO_NATURAL"... */
   categoria: string;
   tempoPreparoMin: number;
 }
@@ -16,8 +16,12 @@ export interface Estacao {
   readonly nome: string;
   /** Categoria de produto que esta estação atende. */
   readonly categoria: string;
-  /** Quantas unidades podem ser preparadas ao mesmo tempo. */
+  /** Quantas tarefas podem rodar ao mesmo tempo (bandejas, chapas...). */
   readonly bancadas: number;
-  /** Minutos de preparo de uma unidade. 0 = sem preparo (não entra na linha do tempo). */
+  /** Minutos de preparo de um item. Valores <= 0 fazem o item não entrar na linha do tempo. */
   tempoPreparo(produto: ProdutoPreparavel): number;
+  /** Texto da tarefa na tela. Padrão: a lista dos itens, ex.: "2× Coxinha, 1× Empada". */
+  descricaoTarefa?(itens: string): string;
+  /** Nome da bancada. Padrão: "<nome> 1", "<nome> 2"... (ou só o nome se houver uma). */
+  rotuloBancada?(indice: number): string;
 }

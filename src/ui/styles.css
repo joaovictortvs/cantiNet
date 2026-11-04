@@ -219,6 +219,7 @@ input {
 .cat-pronta { --cor: var(--pronta); }
 .cat-forno { --cor: var(--forno); }
 .cat-chapa { --cor: var(--chapa); }
+.cat-suco {--cor:var(--alerta)}
 
 .categoria-topo {
   display: flex;
@@ -703,6 +704,7 @@ input {
 .tarefa.est-forno { border-left-color: #fb923c; }
 .tarefa.est-chapa { border-left-color: #a78bfa; }
 .tarefa.est-balcao { border-left-color: #4ade80; }
+.tarefa.est-liquidificador { border-left-color: #a78bfa;}
 
 .tarefa.andamento {
   opacity: 0.75;

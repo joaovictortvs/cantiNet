@@ -1,110 +1,82 @@
+import { Cozinha, type PedidoParaCozinha } from './cozinha/Cozinha';
+import { criarEstacoesPadrao, ID_BALCAO } from './cozinha/estacoes';
 import { paraHHMM } from './tempo';
-import type { Estacao, ItemPedido, Pedido, PlanoProducao, TarefaProducao } from './types';
+import type { Pedido, PlanoProducao, TarefaProducao } from './types';
 
-const BANCADAS: Record<Exclude<Estacao, 'BALCAO'>, string[]> = {
-  FORNO: ['Forno · bandeja 1', 'Forno · bandeja 2'],
-  CHAPA: ['Chapa 1', 'Chapa 2'],
-};
+/**
+ * Cozinha única do app. Para criar uma estação nova (ex.: Liquidificador),
+ * implemente a interface Estacao e registre em criarEstacoesPadrao().
+ * Este arquivo não precisa mudar.
+ */
+export const cozinha = new Cozinha(criarEstacoesPadrao());
 
-interface TarefaBruta {
-  pedido: Pedido;
-  estacao: Estacao;
-  duracao: number;
-  descricao: string;
-}
-
-function descrever(itens: ItemPedido[]): string {
-  return itens.map((i) => `${i.quantidade}× ${i.nome}`).join(', ');
+export function paraCozinha(p: Pedido): PedidoParaCozinha {
+  return {
+    id: p.id,
+    codigo: p.codigo,
+    alvoMin: p.retiradaMin,
+    itens: p.itens.map((i) => ({
+      produto: { id: i.produtoId, nome: i.nome, categoria: i.categoria, tempoPreparoMin: i.tempoPreparoMin },
+      quantidade: i.quantidade,
+    })),
+  };
 }
 
 /**
- * "IA" orquestradora (mockada): agendamento reverso.
- * Para cada pedido, o alvo e o horario de retirada. Cada estacao comeca
- * (alvo - tempo de preparo), assim forno, chapa e balcao terminam juntos.
- * Se as bancadas estiverem ocupadas, a tarefa termina mais cedo e o item
- * fica aquecido ate o alvo.
+ * "IA" orquestradora (mockada): agendamento reverso, agora sobre estações plugáveis.
+ * Para cada pedido, o alvo é o horário de retirada. Cada estação começa
+ * (alvo - tempo de preparo), assim todas terminam juntas. Se as bancadas
+ * estiverem ocupadas, a tarefa termina mais cedo e o item fica aquecido até o alvo.
  */
 export function orquestrarCozinha(pedidos: Pedido[], agoraMin: number): PlanoProducao {
   const ativos = pedidos.filter((p) => p.status === 'AGUARDANDO' || p.status === 'EM_PREPARO');
+  const porId = new Map(ativos.map((p) => [p.id, p]));
+  const plano = cozinha.planejar(ativos.map(paraCozinha), agoraMin);
 
-  const brutas: TarefaBruta[] = [];
-  for (const pedido of ativos) {
-    (['FORNO', 'CHAPA'] as const).forEach((estacao) => {
-      const itens = pedido.itens.filter((i) => i.categoria === estacao);
-      if (itens.length === 0) return;
-      brutas.push({
-        pedido,
-        estacao,
-        duracao: Math.max(...itens.map((i) => i.tempoPreparoMin)),
-        descricao: descrever(itens),
-      });
-    });
-    const prontos = pedido.itens.filter((i) => i.categoria === 'PRONTA_ENTREGA');
-    if (prontos.length > 0) {
-      brutas.push({ pedido, estacao: 'BALCAO', duracao: 1, descricao: `Separar ${descrever(prontos)}` });
-    }
-  }
-
-  const tarefas: TarefaProducao[] = [];
   const alertas: string[] = [];
+  const nomeDaEstacao = new Map<string, string>(); // chave da tarefa -> nome da estação
 
-  // Agendamento reverso por estacao: do alvo mais tardio para o mais cedo.
-  const porEstacao: Estacao[] = ['FORNO', 'CHAPA', 'BALCAO'];
-  for (const estacao of porEstacao) {
-    const doGrupo = brutas
-      .filter((b) => b.estacao === estacao)
-      .sort((a, b) => b.pedido.retiradaMin - a.pedido.retiradaMin);
+  const tarefas: TarefaProducao[] = plano.blocos.map((b) => {
+    const pedido = porId.get(b.pedidoId)!;
+    const emAndamento = pedido.status === 'EM_PREPARO';
+    const iniciarAgora = !emAndamento && b.inicioMin <= agoraMin;
+    const atrasoMin = iniciarAgora ? Math.max(0, agoraMin - b.inicioMin) : 0;
 
-    const bancadas = estacao === 'BALCAO' ? ['Balcão'] : BANCADAS[estacao];
-    const proximoInicio = bancadas.map(() => Infinity);
+    nomeDaEstacao.set(`${b.pedidoId}-${b.estacaoId}`, b.estacaoNome);
 
-    for (const b of doGrupo) {
-      const alvo = b.pedido.retiradaMin;
-      let idx = 0;
-      if (estacao !== 'BALCAO') {
-        idx = proximoInicio.indexOf(Math.max(...proximoInicio));
-      }
-      const fim = estacao === 'BALCAO' ? alvo : Math.min(alvo, proximoInicio[idx]);
-      const inicio = fim - b.duracao;
-      if (estacao !== 'BALCAO') proximoInicio[idx] = inicio;
-
-      const emAndamento = b.pedido.status === 'EM_PREPARO';
-      const iniciarAgora = !emAndamento && inicio <= agoraMin;
-      const atrasoMin = iniciarAgora ? Math.max(0, agoraMin - inicio) : 0;
-      const aquecidoMin = Math.max(0, alvo - fim);
-
-      tarefas.push({
-        pedidoId: b.pedido.id,
-        codigo: b.pedido.codigo,
-        aluno: b.pedido.aluno,
-        estacao,
-        bancada: bancadas[idx],
-        descricao: b.descricao,
-        inicioMin: inicio,
-        fimMin: fim,
-        alvoMin: alvo,
-        aquecidoMin,
-        iniciarAgora,
-        atrasoMin,
-        emAndamento,
-        ordem: 0,
-      });
-
-      if (atrasoMin > 0) {
-        alertas.push(`${b.pedido.codigo}: começar ${b.estacao === 'CHAPA' ? 'a chapa' : 'o forno'} já — risco de ${atrasoMin} min de atraso.`);
-      }
-      if (aquecidoMin > 0 && estacao !== 'BALCAO') {
-        alertas.push(`${b.pedido.codigo}: ${b.descricao} ficará pronto ${aquecidoMin} min antes; manter aquecido.`);
-      }
+    if (atrasoMin > 0) {
+      alertas.push(`${b.codigo}: começar ${b.estacaoNome.toLowerCase()} já — risco de ${atrasoMin} min de atraso.`);
     }
-  }
+    if (b.aquecidoMin > 0 && b.estacaoId !== ID_BALCAO) {
+      alertas.push(`${b.codigo}: ${b.descricao} ficará pronto ${b.aquecidoMin} min antes; manter aquecido.`);
+    }
+
+    return {
+      pedidoId: b.pedidoId,
+      codigo: b.codigo,
+      aluno: pedido.aluno,
+      estacao: b.estacaoId,
+      bancada: b.rotuloBancada,
+      descricao: b.descricao,
+      inicioMin: b.inicioMin,
+      fimMin: b.fimMin,
+      alvoMin: b.alvoMin,
+      aquecidoMin: b.aquecidoMin,
+      iniciarAgora,
+      atrasoMin,
+      emAndamento,
+      ordem: 0,
+    };
+  });
 
   tarefas.sort((a, b) => a.inicioMin - b.inicioMin || a.alvoMin - b.alvoMin);
   tarefas.forEach((t, i) => (t.ordem = i + 1));
 
   const explicacoes = ativos.map((p) => {
-    const dele = tarefas.filter((t) => t.pedidoId === p.id && t.estacao !== 'BALCAO');
-    const partes = dele.map((t) => `${t.estacao === 'CHAPA' ? 'chapa' : 'forno'} às ${paraHHMM(t.inicioMin)}`);
+    const dele = tarefas.filter((t) => t.pedidoId === p.id && t.estacao !== ID_BALCAO);
+    const partes = dele.map(
+      (t) => `${(nomeDaEstacao.get(`${t.pedidoId}-${t.estacao}`) ?? t.estacao).toLowerCase()} às ${paraHHMM(t.inicioMin)}`,
+    );
     return partes.length > 0
       ? `${p.codigo}: tudo pronto às ${paraHHMM(p.retiradaMin)} → ${partes.join(' e ')}.`
       : `${p.codigo}: só pronta-entrega, separar às ${paraHHMM(p.retiradaMin - 1)}.`;

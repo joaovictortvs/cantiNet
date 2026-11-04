@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
 interface Props {
   /** Chamado com o texto do QR Code lido (no máximo 1x a cada 3 s para o mesmo texto). */
@@ -19,25 +19,33 @@ export function LeitorQrCamera({ onLeitura, ativo = true }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [erro, setErro] = useState<string | null>(null);
 
+  // Guarda a versão mais recente do callback sem reiniciar a câmera a cada render.
+  const callback = useRef(onLeitura);
+  callback.current = onLeitura;
+
   useEffect(() => {
     if (!ativo) return;
-    if (typeof BarcodeDetector === "undefined") {
-      setErro("Este navegador não lê QR Code pela câmera. Use o código CNT-XXXX.");
+    if (typeof BarcodeDetector === 'undefined') {
+      setErro('Este navegador não lê QR Code pela câmera. Digite o código CNT-… no campo de conferência.');
       return;
     }
 
     let parar = false;
     let stream: MediaStream | undefined;
     let timer: number | undefined;
-    let ultimo = { texto: "", em: 0 };
-    const detector = new BarcodeDetector({ formats: ["qr_code"] });
+    let ultimo = { texto: '', em: 0 };
+    const detector = new BarcodeDetector({ formats: ['qr_code'] });
 
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: "environment" } })
+      .getUserMedia({ video: { facingMode: 'environment' } })
       .then(async (s) => {
-        if (parar) return s.getTracks().forEach((t) => t.stop());
+        if (parar) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
         stream = s;
-        const video = videoRef.current!;
+        const video = videoRef.current;
+        if (!video) return;
         video.srcObject = s;
         await video.play();
         timer = window.setInterval(async () => {
@@ -46,22 +54,22 @@ export function LeitorQrCamera({ onLeitura, ativo = true }: Props) {
             const texto: string | undefined = achado?.rawValue;
             if (texto && (texto !== ultimo.texto || Date.now() - ultimo.em > 3000)) {
               ultimo = { texto, em: Date.now() };
-              onLeitura(texto);
+              callback.current(texto);
             }
           } catch {
             /* quadro sem imagem: tenta de novo */
           }
         }, 300);
       })
-      .catch(() => setErro("Não foi possível acessar a câmera. Verifique a permissão do navegador."));
+      .catch(() => setErro('Não foi possível acessar a câmera. Verifique a permissão do navegador.'));
 
     return () => {
       parar = true;
       if (timer) window.clearInterval(timer);
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [ativo, onLeitura]);
+  }, [ativo]);
 
   if (erro) return <p role="alert">{erro}</p>;
-  return <video ref={videoRef} muted playsInline style={{ width: "100%", maxWidth: 420, borderRadius: 12 }} />;
+  return <video ref={videoRef} muted playsInline style={{ width: '100%', maxWidth: 420, borderRadius: 12 }} />;
 }

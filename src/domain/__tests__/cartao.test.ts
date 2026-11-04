@@ -37,6 +37,11 @@ describe("mensagem de estorno", () => {
       "Estorno de R$ 12,50 do pedido CNT-0001 solicitado ao cartão final 4242. O valor aparece na fatura em até 5 dias úteis.",
     );
   });
+  it("funciona sem código de pedido (pagamento que falhou antes de criar o pedido)", () => {
+    expect(mensagemEstorno({ valor: 6, ultimos4: "4242" })).toBe(
+      "Estorno de R$ 6,00 solicitado ao cartão final 4242. O valor aparece na fatura em até 5 dias úteis.",
+    );
+  });
   it("usa singular para 1 dia útil", () => {
     expect(
       mensagemEstorno({ valor: 3, ultimos4: "1111", codigoPedido: "CNT-0002", prazoDiasUteis: 1 }),

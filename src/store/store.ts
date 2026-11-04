@@ -7,6 +7,7 @@ import type { DadosCartao } from '../domain/pagamento';
 import { criarPedido, montarItens, proximoStatus, totalDosItens } from '../domain/pedidos';
 import { arredondarParaCima, minutosDoDia } from '../domain/tempo';
 import type { Cartao, ItemCarrinho, Pedido, Produto } from '../domain/types';
+import { mensagemEstorno } from '../domain/estorno';
 
 /**
  * STORE EM MEMORIA (versao Go Horse).
@@ -161,7 +162,10 @@ export const acoes = {
     const atual = estado;
     if (validarCarrinho(atual.produtos, carrinhoPago).length > 0) {
       atualizar({ processandoPagamento: false });
-      return { ok: false, erro: 'O estoque acabou durante o pagamento. Valor estornado.' };
+      return {
+        ok: false,
+        erro: `O estoque acabou durante o pagamento. ${mensagemEstorno({ valor: totalDosItens(itens), ultimos4: cartao.ultimos4 })}`,
+      };
     }
 
     const pedido = criarPedido({
@@ -185,6 +189,14 @@ export const acoes = {
   avancarStatus(pedidoId: string) {
     atualizar({
       pedidos: estado.pedidos.map((p) => (p.id === pedidoId ? { ...p, status: proximoStatus(p.status) } : p)),
+    });
+  },
+
+  entregarPedido(pedidoId: string) {
+    atualizar({
+      pedidos: estado.pedidos.map((p) =>
+        p.id === pedidoId && p.status === 'PRONTO' ? { ...p, status: 'ENTREGUE' } : p,
+      ),
     });
   },
 
@@ -216,6 +228,7 @@ export const acoes = {
           { produtoId: 'cuscuz', quantidade: 1 },
           { produtoId: 'enroladinho', quantidade: 2 },
           { produtoId: 'suco', quantidade: 1 },
+          { produtoId: 'suco-laranja', quantidade: 1 },
         ],
       },
       {
