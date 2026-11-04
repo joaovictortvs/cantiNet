@@ -2,7 +2,7 @@
 
 > Pedido antecipado, horário de retirada, pagamento em 1 clique e retirada por QR Code. Uma "IA" organiza a cozinha para que tudo fique pronto ao mesmo tempo.
 
-**Entrega 2 · refatoração orientada a objetos.** A Entrega 1 ("Go Horse") está na branch/tag anterior; aqui o mesmo app foi reorganizado aplicando os princípios do Capítulo 5.
+**Entrega 2 · refatoração orientada a objetos.** A Entrega 1 ("Go Horse") está preservada na tag `entrega1-final`; aqui o mesmo app foi reorganizado aplicando os princípios do Capítulo 5.
 
 ## Dados da entrega
 
@@ -14,23 +14,21 @@
 | **Professor(a)** | Lucas Farias |
 | **Vídeo da Entrega 1 (3 min)** | https://youtu.be/PPA3N-5VJz0?si=wXdYHns_CpGBatkd |
 | **Vídeo da Entrega 2** | [PREENCHER] |
-| **Repositório** | https://github.com/joaovictortvs/cantiNet (branch `entrega2`) |
+| **Repositório** | https://github.com/joaovictortvs/cantiNet (branch única `entrega2`) |
+| **Código da Entrega 1** | tag `entrega1-final` |
 
 ### Equipe e papéis
 
-> Papéis sugeridos (Scrum). **[PREENCHER]** com a divisão real antes de entregar.
-
-| Integrante | Papel |
+| Integrante | Atividades realizadas |
 |---|---|
-| Antônio Neto | [PREENCHER] (ex.: Product Owner) |
-| Carlos Daniel | [PREENCHER] (ex.: Scrum Master) |
-| Davi Pereira | [PREENCHER] (ex.: Dev — domínio e serviços) |
-| Davi Braz | [PREENCHER] (ex.: Dev — interface do aluno) |
-| João Victor | [PREENCHER] (ex.: Dev — painel da atendente) |
-| José Nalbert | [PREENCHER] (ex.: Dev — testes) |
-| Luis Silva | [PREENCHER] (ex.: Dev — pagamento e retirada) |
-| Kauã Mateus | [PREENCHER] (ex.: Dev — documentação e vídeo) |
-
+| João Victor | Organização do repositório (branches, tags, merge e correção do build). Parte central da refatoração aplicando o Cap. 5: modelos com campos privados, portas (interfaces) e serviços do domínio. Camada `app`, `infra` e `composicao.ts`. Parte da interface do aluno e do atendente. Testes automatizados, incluindo o de arquitetura. Edição do vídeo |
+| Antônio Neto | Definição dos requisitos e do escopo da entrega. Levantamento dos problemas da Entrega 1 que seriam corrigidos na refatoração. Revisão final do aplicativo antes da entrega |
+| Carlos Daniel | Organização das tarefas e dos prazos da equipe. Acompanhamento do andamento da entrega e conferência dos itens exigidos pelo professor |
+| Davi Pereira | Revisão das regras do domínio (estoque, pedidos e agendamento) e sugestões de melhoria nos serviços. Testes manuais do fluxo completo do aluno, do cardápio ao pedido |
+| Davi Braz | Sugestões de layout e de textos da tela do aluno. Testes manuais da interface (cardápio, carrinho e meus pedidos) e relato de problemas encontrados |
+| José Nalbert | Testes manuais do painel do atendente. Conferência dos casos de teste automatizados e sugestão de cenários novos (cartão vencido, estoque esgotado) |
+| Luis Silva | Testes manuais de pagamento, estorno e retirada por QR Code. Relato dos bugs encontrados e conferência das correções |
+| Kauã Mateus | Revisão do README (tabela de princípios, antes e depois) e do texto de justificativa da stack. Colaboração no roteiro do vídeo |
 ## Por que essa stack?
 
 **React.** A tela muda o tempo todo (estoque cai a cada venda, horários lotam, o pedido anda de "Na fila" a "Pronto"). Com React descrevemos *como a tela deve ficar para um dado estado* e ele atualiza sozinho. Os componentes pequenos também combinam com a separação aluno × atendente.
@@ -104,6 +102,7 @@ Legenda: ✅ atende · 🟡 em parte · ❌ violava · ⚪ não se aplicava.
 - **Estações plugáveis + linha do tempo.** O painel da atendente mostra um gráfico por bancada (faixa tracejada = item pronto esperando) que se reorganiza sozinho quando o plano muda.
 - **Retirada por câmera.** O tablet lê o QR Code do pedido (`jsqr`) e marca como entregue; só entrega pedido **Pronto**, e uma segunda leitura avisa que já foi entregue.
 - **Correções.** Cartão vencido agora é recusado (vale até o último dia do mês, usando o relógio injetado). O **estorno** é de verdade: se o estoque acaba durante o pagamento, `PagamentoService` chama `GatewayPagamento.estornar` e só mostra a mensagem de estorno se ele deu certo; se falhar, a mensagem diz isso e traz o comprovante.
+- **Limpeza final.** Removidos `store/store.ts`, `ui/categorias.ts` e `ui/formatar.ts`, que sobraram da Entrega 1; sem eles o `npm run build` e o teste de arquitetura passam.
 
 ## Testes
 
