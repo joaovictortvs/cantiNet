@@ -125,21 +125,23 @@ export function PainelAtendente() {
       {(camera || resultado) && (
         <div className="estoque-card">
           <h3>📷 Retirada por QR Code</h3>
-          {camera && <LeitorQrCamera onLeitura={aoLerQrCode} />}
-          {resultado && (
-            <p role="status">
-              {resultado.ok ? `✔ Pedido ${resultado.codigo} entregue.` : `⚠️ ${resultado.mensagem}`}
-            </p>
-          )}
-          <button
-            className="btn btn-fantasma"
-            onClick={() => {
-              setCamera(false);
-              setResultado(null);
-            }}
-          >
-            Fechar
-          </button>
+          <div style={{ gridColumn: '1 / -1', display: 'grid', gap: 10, justifyItems: 'start' }}>
+            {camera && <LeitorQrCamera onLeitura={aoLerQrCode} />}
+            {resultado && (
+              <p role="status">
+                {resultado.ok ? `✔ Pedido ${resultado.codigo} entregue.` : `⚠️ ${resultado.mensagem}`}
+              </p>
+            )}
+            <button
+              className="btn btn-fantasma"
+              onClick={() => {
+                setCamera(false);
+                setResultado(null);
+              }}
+            >
+              Fechar
+            </button>
+          </div>
         </div>
       )}
 

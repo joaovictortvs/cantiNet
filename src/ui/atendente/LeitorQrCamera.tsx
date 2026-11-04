@@ -1,3 +1,4 @@
+import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'react';
 
 interface Props {
@@ -6,13 +7,10 @@ interface Props {
   ativo?: boolean;
 }
 
-// BarcodeDetector ainda não está nos tipos padrão do TypeScript.
-declare const BarcodeDetector: any;
-
 /**
- * Lê QR Code pela câmera do tablet usando a API nativa BarcodeDetector
- * (Chrome/Edge/Android). Em navegadores sem suporte (ex.: Safari), mostra aviso;
- * nesse caso troque por uma lib como "jsqr" ou "@yudiel/react-qr-scanner".
+ * Lê QR Code pela câmera (webcam do notebook ou câmera traseira do tablet).
+ * Usa a biblioteca jsQR, que funciona em qualquer navegador moderno.
+ * (A API nativa BarcodeDetector não existe no Chrome do Windows.)
  * Requer HTTPS (ou localhost) para acessar a câmera.
  */
 export function LeitorQrCamera({ onLeitura, ativo = true }: Props) {
@@ -25,8 +23,8 @@ export function LeitorQrCamera({ onLeitura, ativo = true }: Props) {
 
   useEffect(() => {
     if (!ativo) return;
-    if (typeof BarcodeDetector === 'undefined') {
-      setErro('Este navegador não lê QR Code pela câmera. Digite o código CNT-… no campo de conferência.');
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErro('Este navegador não dá acesso à câmera (use HTTPS ou localhost). Digite o código CNT-… no campo de conferência.');
       return;
     }
 
@@ -34,7 +32,8 @@ export function LeitorQrCamera({ onLeitura, ativo = true }: Props) {
     let stream: MediaStream | undefined;
     let timer: number | undefined;
     let ultimo = { texto: '', em: 0 };
-    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'environment' } })
@@ -48,18 +47,18 @@ export function LeitorQrCamera({ onLeitura, ativo = true }: Props) {
         if (!video) return;
         video.srcObject = s;
         await video.play();
-        timer = window.setInterval(async () => {
-          try {
-            const [achado] = await detector.detect(video);
-            const texto: string | undefined = achado?.rawValue;
-            if (texto && (texto !== ultimo.texto || Date.now() - ultimo.em > 3000)) {
-              ultimo = { texto, em: Date.now() };
-              callback.current(texto);
-            }
-          } catch {
-            /* quadro sem imagem: tenta de novo */
+        timer = window.setInterval(() => {
+          if (!ctx || video.readyState < 2 || !video.videoWidth) return;
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const quadro = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const texto = jsQR(quadro.data, quadro.width, quadro.height, { inversionAttempts: 'dontInvert' })?.data;
+          if (texto && (texto !== ultimo.texto || Date.now() - ultimo.em > 3000)) {
+            ultimo = { texto, em: Date.now() };
+            callback.current(texto);
           }
-        }, 300);
+        }, 250);
       })
       .catch(() => setErro('Não foi possível acessar a câmera. Verifique a permissão do navegador.'));
 

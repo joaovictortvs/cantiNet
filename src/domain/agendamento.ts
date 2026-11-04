@@ -6,6 +6,12 @@ export const PASSO_SLOT_MIN = 5;
 export const CAPACIDADE_CHAPA_POR_SLOT = 4;
 export const QTD_SLOTS = 9;
 
+/**
+ * Categorias que têm tempo de preparo mas NÃO usam horário marcado.
+ * Entrega 2: o suco natural (Liquidificador) entra aqui; antes só o forno contava.
+ */
+const PREPARO_SEM_HORARIO: Categoria[] = ['FORNO', 'SUCO_NATURAL'];
+
 export interface Slot {
   minuto: number;
   vagas: number;
@@ -35,6 +41,10 @@ export function tempoMaximo(produtos: Produto[], carrinho: ItemCarrinho[], categ
   }, 0);
 }
 
+function tempoMaximoEntre(produtos: Produto[], carrinho: ItemCarrinho[], categorias: Categoria[]): number {
+  return Math.max(0, ...categorias.map((c) => tempoMaximo(produtos, carrinho, c)));
+}
+
 function vagasUsadas(pedidos: Pedido[], minuto: number): number {
   return pedidos
     .filter((p) => p.status !== 'ENTREGUE' && p.retiradaMin === minuto)
@@ -53,10 +63,7 @@ export function gerarSlots(
   pedidos: Pedido[],
 ): Slot[] {
   const qtd = quantidadeDaCategoria(produtos, carrinho, 'CHAPA');
-  const preparo = Math.max(
-    tempoMaximo(produtos, carrinho, 'CHAPA'),
-    tempoMaximo(produtos, carrinho, 'FORNO'),
-  );
+  const preparo = tempoMaximoEntre(produtos, carrinho, ['CHAPA', ...PREPARO_SEM_HORARIO]);
   const primeiro = arredondarParaCima(agoraMin + preparo + 1, PASSO_SLOT_MIN);
   const slots: Slot[] = [];
   for (let i = 0; i < QTD_SLOTS; i++) {
@@ -67,11 +74,11 @@ export function gerarSlots(
   return slots;
 }
 
-/** Sem item de chapa: retirada assim que o forno terminar (ou quase imediata). */
+/** Sem item de chapa: retirada assim que forno e liquidificador terminarem (ou quase imediata). */
 export function calcularRetiradaSemChapa(
   agoraMin: number,
   produtos: Produto[],
   carrinho: ItemCarrinho[],
 ): number {
-  return agoraMin + Math.max(tempoMaximo(produtos, carrinho, 'FORNO'), 1);
+  return agoraMin + Math.max(tempoMaximoEntre(produtos, carrinho, PREPARO_SEM_HORARIO), 1);
 }

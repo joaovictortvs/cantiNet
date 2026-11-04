@@ -13,7 +13,7 @@ interface Props {
  * Estação nova aparece aqui sem alterar este arquivo.
  */
 export function LinhaDoTempo({ tarefas, agoraMin }: Props) {
-  if (tarefas.length === 0) return <p className="vazio">Nenhum preparo na fila.</p>;
+  if (tarefas.length === 0) return <p className="vazio" style={{ gridColumn: '1 / -1' }}>Nenhum preparo na fila.</p>;
 
   const ini = Math.min(agoraMin, ...tarefas.map((t) => t.inicioMin));
   const fim = Math.max(agoraMin + 1, ...tarefas.map((t) => t.alvoMin));
@@ -22,7 +22,7 @@ export function LinhaDoTempo({ tarefas, agoraMin }: Props) {
   const bancadas = Array.from(new Set(tarefas.map((t) => t.bancada))).sort((a, b) => a.localeCompare(b));
 
   return (
-    <section aria-label="Linha do tempo da cozinha">
+    <section aria-label="Linha do tempo da cozinha" style={{ gridColumn: '1 / -1', width: '100%', minWidth: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px 138px' }}>
         <span>{paraHHMM(ini)}</span>
         <span>agora {paraHHMM(agoraMin)}</span>
@@ -84,7 +84,7 @@ export function LinhaDoTempo({ tarefas, agoraMin }: Props) {
           </div>
         </div>
       ))}
-      <p className="nota">Tracejado = item pronto esperando a retirada (mantido aquecido). Linha vermelha = agora.</p>
+      <p className="nota" style={{ gridColumn: '1 / -1' }}>Tracejado = item pronto esperando a retirada (mantido aquecido). Linha vermelha = agora.</p>
     </section>
   );
 }
