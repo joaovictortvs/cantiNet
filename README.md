@@ -13,7 +13,7 @@
 | **Livro-base** | *Engenharia de Software Moderna*, Marco Tulio Valente — Cap. 5 |
 | **Professor(a)** | Lucas Farias |
 | **Vídeo da Entrega 1 (3 min)** | https://youtu.be/PPA3N-5VJz0?si=wXdYHns_CpGBatkd |
-| **Vídeo da Entrega 2** | [PREENCHER] |
+| **Vídeo da Entrega 2 (3 min)** | https://youtu.be/XtOFy1fR5fc |
 | **Repositório** | https://github.com/joaovictortvs/cantiNet (branch única `entrega2`) |
 | **Código da Entrega 1** | tag `entrega1-final` |
 
